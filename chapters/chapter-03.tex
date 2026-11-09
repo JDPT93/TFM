@@ -1,23 +1,85 @@
-\chapter{Objetivos y metodología}
+\chapter{Estructura del Trabajo}
+\label{chap:objetivos}
 
-El TFE analiza la recuperación de una subclave parcial mediante un ataque diferencial y compara la búsqueda clásica de candidatos con una búsqueda cuántica de máximo. La metodología combina la formalización del algoritmo, el análisis de costes bajo un modelo de acceso explícito y la evaluación computacional de una instancia reducida y reproducible. El estudio se limita al nivel algorítmico y no incluye la ejecución en hardware cuántico ni el análisis de ruido, corrección de errores o recursos físicos.
+Este capítulo concreta los objetivos que se derivan de la pregunta de investigación de la Sección~\ref{sec:problema} y de las carencias identificadas en la Sección~\ref{sec:critica}, y describe la metodología con la que se abordan.
 
 \section{Objetivo general}
 
-Analizar la aplicación de una búsqueda cuántica de máximo a la recuperación de subclaves mediante criptoanálisis diferencial, separando la complejidad de consultas a la función de puntuación del coste de calcularla y de los recursos necesarios para acceder a los datos.
+Determinar, para una instancia concreta de ataque diferencial de última ronda, el coste total de recuperar la subclave mediante una búsqueda cuántica de máximo, contabilizando la evaluación reversible de la función de puntuación y el acceso a los datos, y compararlo con el ataque clásico optimizado y con la búsqueda cuántica exhaustiva de la clave.
 
 \section{Objetivos específicos}
 
+Los objetivos específicos descomponen el objetivo general en tareas observables y productos verificables. Su cumplimiento se comprobará mediante los indicadores de la Tabla~\ref{tab:objetivos}.
+
 \begin{enumerate}
- \item Formalizar la condición diferencial y la función de puntuación para cada candidato de subclave.
- \item Identificar el modelo de acceso a los textos y al cifrador que asume el ataque.
- \item Describir los requisitos de reversibilidad para calcular, comparar y deshacer la puntuación dentro de una búsqueda cuántica.
- \item Estimar datos, consultas, operaciones y memoria en los modelos clásico y cuántico, indicando los parámetros de los que depende cada cota.
- \item Contrastar las expresiones analíticas con el código disponible y documentar qué resultados pueden reproducirse y cuáles son solo estimaciones teóricas.
+ \item[OE1.] Fijar una instancia criptográfica reproducible (cifrador, característica diferencial, bits de subclave atacados y filtro) y calcular de forma exacta su probabilidad diferencial, su tasa de filtrado y su relación señal/ruido.
+ \item[OE2.] Definir el modelo de adversario (Q1 o Q2) y el modelo de acceso a los datos bajo los que se comparan los costes.
+ \item[OE3.] Diseñar un oráculo cuántico reversible que evalúe la puntuación \(A(k)\), la compare con un umbral y devuelva todos sus registros auxiliares a su estado inicial, y estimar su número de qubits lógicos y de operaciones.
+ \item[OE4.] Construir un modelo de costes homogéneo para el ataque clásico con filtrado y contadores, la búsqueda de Dürr--Høyer, la búsqueda de Grover con umbral y la búsqueda de Grover sobre la clave completa.
+ \item[OE5.] Implementar y simular el ataque clásico y el circuito cuántico en una versión reducida de la instancia, y contrastar las magnitudes medidas con las predicciones analíticas.
 \end{enumerate}
+
+La Tabla~\ref{tab:objetivos} asocia a cada objetivo un indicador verificable y la entrega en la que se completa.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{p{0.10\textwidth} p{0.50\textwidth} p{0.14\textwidth} p{0.12\textwidth}}
+\hline\hline
+Objetivo & Indicador de cumplimiento & Capítulo & Entrega \\
+\hline
+OE1 & Valores exactos de \(p\), \(\beta\), \(\alpha\) y \(S/N\), comprobables a mano a partir de la DDT & \ref{chap:requisitos}, \ref{chap:solucion} & 2 \\
+OE2 & Modelo declarado y justificado; supuestos enumerados & \ref{chap:requisitos} & 2 \\
+OE3 & Descripción de registros, algoritmo del oráculo y recuento de qubits & \ref{chap:solucion} & 2 (diseño), 3 (circuito) \\
+OE4 & Tabla de costes con expresiones y valores numéricos para la instancia & \ref{chap:solucion} & 2 \\
+OE5 & Tasa de recuperación empírica, distribución de puntuaciones y recursos del circuito obtenidos por simulación & Evaluación & 3 \\
+\hline
+\end{tabular}
+\caption[Indicadores de los objetivos específicos]{Indicadores de cumplimiento de los objetivos específicos y planificación por entregas. Fuente: elaboración propia.}
+\label{tab:objetivos}
+\end{table}
 
 \section{Metodología}
 
-La metodología comprende cuatro etapas. Primero, se revisan los trabajos originales sobre criptoanálisis diferencial y búsqueda cuántica de extremos. Segundo, se fija el escenario criptográfico, incluidos el cifrador, las rondas atacadas, la diferencia elegida, el tamaño de subclave \(b\) y los datos \(N\). Tercero, se traduce la función de puntuación a operaciones elementales y se inspecciona el código del repositorio para comprobar qué partes implementa. Por último, se comparan las complejidades bajo supuestos homogéneos y se registran las limitaciones.
+La metodología combina revisión bibliográfica, formalización matemática e implementación reproducible. A continuación se detallan el enfoque adoptado, las fases de trabajo, las herramientas y las métricas de evaluación.
 
-Para la evaluación computacional se deberán informar la versión del código, el entorno de ejecución, los parámetros, las semillas aleatorias cuando proceda y las métricas observadas. Las tablas de resultados experimentales se completarán de forma incremental con ejecuciones verificables; no se inferirán mediciones a partir de la descripción teórica de los artículos.
+\subsection{Enfoque}
+
+El Trabajo sigue un enfoque cuantitativo que combina el análisis teórico con la experimentación computacional. La parte analítica deriva expresiones de coste a partir de la estructura del cifrador y de los algoritmos cuánticos; la parte experimental comprueba esas expresiones mediante la ejecución del ataque clásico y la simulación del circuito cuántico en instancias reducidas. Ningún resultado numérico se toma de los artículos revisados sin recalcularlo para la instancia del Trabajo.
+
+\subsection{Fases}
+
+El trabajo se organiza en las fases siguientes, que conectan la revisión teórica con el diseño y la evaluación experimental.
+
+\begin{enumerate}
+ \item \textbf{Revisión bibliográfica} (Capítulo~\ref{chap:contexto}). Búsqueda en IACR ePrint, arXiv, Springer LNCS y la revista \emph{IACR Transactions on Symmetric Cryptology} con los términos \emph{quantum differential cryptanalysis}, \emph{quantum key recovery}, \emph{Grover oracle}, \emph{quantum minimum finding} y \emph{QRAM}. Se seleccionan los trabajos originales de cada técnica y los que estiman recursos de oráculos cuánticos.
+ \item \textbf{Instanciación y modelo} (Capítulo~\ref{chap:requisitos}). Elección del cifrador y de la característica, cálculo exacto de la DDT y de las magnitudes estadísticas, y definición del modelo de adversario y de acceso a los datos.
+ \item \textbf{Diseño de la solución} (Capítulo~\ref{chap:solucion}). Diseño del ataque clásico de referencia y del oráculo reversible, y construcción del modelo de costes.
+ \item \textbf{Implementación y simulación} (Entrega 3). Implementación en Python del cifrador y del ataque clásico, y en Qiskit del oráculo y de la búsqueda cuántica para una versión con \(b\le 8\).
+ \item \textbf{Evaluación} (Entrega 3). Contraste entre predicciones y medidas, y análisis de sensibilidad respecto de \(N\) y \(b\).
+\end{enumerate}
+
+\subsection{Herramientas y reproducibilidad}
+
+La implementación se realizará en Python~3 con Qiskit y su simulador de vector de estado, que permite simular de forma exacta circuitos de hasta unos 30 qubits en un ordenador personal. El código se gestionará con control de versiones y la memoria indicará, para cada resultado, la versión del código, el entorno, los parámetros y las semillas aleatorias empleadas.
+
+\subsection{Métricas}
+
+Se emplearán las métricas siguientes para valorar por separado la eficacia del ataque, los recursos cuánticos y la comparabilidad de ambos modelos.
+
+\begin{itemize}
+ \item \textbf{Ataque clásico:} número de pares \(N\), pares que superan el filtro, puntuación del candidato correcto y del mejor incorrecto, tasa de recuperación sobre claves aleatorias y número de evaluaciones del filtro.
+ \item \textbf{Ataque cuántico:} número de llamadas al oráculo, qubits lógicos, número de puertas de Toffoli y CNOT, profundidad del circuito y probabilidad de éxito medida.
+ \item \textbf{Comparación:} coste total expresado en evaluaciones del filtro (un par con un candidato), separando las evaluaciones clásicas de las reversibles.
+\end{itemize}
+
+\subsection{Amenazas a la validez}
+
+La interpretación de los resultados está sujeta a límites de generalización, de medición y de simulación. Se controlarán mediante las siguientes consideraciones.
+
+\begin{itemize}
+ \item \textbf{Validez externa.} Los resultados obtenidos sobre una SPN de 16 bits no se extrapolan a cifradores reales. Las expresiones de coste se formulan en función de \(b\), \(N\), \(p\) y \(\beta\) para que puedan reinstanciarse, pero sus valores numéricos solo son válidos para la instancia estudiada.
+ \item \textbf{Validez de constructo.} El número de consultas no mide el tiempo de ejecución. Por ello se informa también del coste de cada consulta, y los costes clásicos y cuánticos se expresan en la misma unidad, con la advertencia de que una operación reversible es mucho más cara que una clásica.
+ \item \textbf{Validez interna.} Las probabilidades de característica se basan en la hipótesis de cifrador de Markov. La simulación con claves aleatorias permitirá detectar desviaciones respecto de los valores teóricos.
+ \item \textbf{Simulabilidad.} El límite de qubits del simulador obliga a reducir la instancia cuántica, lo que puede ocultar efectos que solo aparecen a mayor escala. Las extrapolaciones se señalarán explícitamente.
+\end{itemize}

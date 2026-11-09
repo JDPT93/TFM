@@ -1,21 +1,134 @@
-\chapter{Contexto y antecedentes}
+\chapter{Motivación del tema}
+\label{chap:contexto}
 
-Este capítulo presenta las nociones necesarias para situar el problema y distingue el ataque diferencial clásico de su adaptación cuántica. La distinción es esencial porque una reducción del número de consultas no elimina el coste de obtener los datos ni el de evaluar la función usada para puntuar cada candidato.
+Este capítulo reúne los fundamentos necesarios para formular el problema y revisa críticamente los trabajos que abordan el criptoanálisis de cifradores simétricos con algoritmos cuánticos. Las secciones~\ref{sec:spn} y~\ref{sec:diferencial} tratan la parte criptográfica; las secciones~\ref{sec:fundamentos} a~\ref{sec:modelos}, la parte cuántica; y las secciones~\ref{sec:estado} y~\ref{sec:critica} presentan el estado actual de la investigación y su análisis frente a las necesidades del Trabajo.
+
+\section{Cifradores por bloques y redes de sustitución y permutación}
+\label{sec:spn}
+
+Un cifrador por bloques de \(n\) bits es una familia de permutaciones \(E_K:\{0,1\}^n\to\{0,1\}^n\) indexada por una clave \(K\). La mayoría de los cifradores modernos son iterados: aplican \(R\) veces una función de ronda parametrizada por una subclave derivada de \(K\). En una red de sustitución-permutación (SPN), cada ronda combina tres operaciones: la adición de la subclave mediante XOR, una capa no lineal de cajas de sustitución (S-cajas) que actúan en paralelo sobre fragmentos del bloque y una capa lineal de permutación o difusión. AES es el ejemplo más conocido de esta estructura.
+
+\citet{heys2002} propuso una SPN de juguete con bloque de 16 bits, cuatro rondas y cuatro S-cajas idénticas de 4 bits por ronda, diseñada con fines didácticos para ilustrar el criptoanálisis lineal y diferencial. Su tamaño permite calcular de forma exacta todas las magnitudes del ataque y simular circuitos cuánticos asociados, por lo que se ha convertido en un banco de pruebas habitual. El Capítulo~\ref{chap:requisitos} la adopta como instancia del Trabajo.
 
 \section{Criptoanálisis diferencial}
+\label{sec:diferencial}
 
-El criptoanálisis diferencial analiza la relación entre diferencias de entradas y diferencias de salidas de un cifrador. Para diferencias XOR se escriben \(\Delta P=P\oplus P'\) y \(\Delta C=C\oplus C'\). En un cifrador por rondas, una característica diferencial describe una secuencia de diferencias intermedias y su probabilidad bajo las subclaves. Si una diferencia de salida aparece con probabilidad apreciablemente mayor que la esperada bajo una clave incorrecta, un conjunto de pares puede aportar evidencia estadística a favor de ciertos candidatos de subclave \citep{biham1991}.
+El criptoanálisis diferencial proporciona el modelo estadístico que sustenta la recuperación de subclave estudiada en este Trabajo. Primero se definen las diferencias y su propagación; después se describe cómo se convierten en una puntuación de candidatos.
 
-En un ataque de recuperación de clave sobre una ronda final, se aplica el inverso parcial de la última ronda para cada candidato. El filtro resultante aporta un voto al candidato cuando el par satisface la condición prevista. La acumulación de votos define una función de puntuación como la de la Ecuación~\ref{eq:score}. La eficacia depende de que exista una diferencia estadística entre la puntuación del candidato correcto y la de los incorrectos, además de que se disponga de suficientes pares.
+\subsection{Diferencias, tabla DDT y características}
 
-\section{Búsqueda cuántica y modelos de acceso}
+El criptoanálisis diferencial, introducido por \citet{biham1991}, estudia cómo se propaga una diferencia entre dos entradas a través del cifrador. Para diferencias XOR se escribe \(\Delta X=X\oplus X'\). La adición de subclave no altera la diferencia, porque \((X\oplus k)\oplus(X'\oplus k)=\Delta X\), y la capa lineal la transforma de forma determinista. Toda la incertidumbre procede de las S-cajas. Para una S-caja \(S\) de \(m\) bits, la tabla de distribución de diferencias (DDT) recoge
+\begin{equation}
+ \mathrm{DDT}_S[\Delta x][\Delta y]=\#\{x\in\{0,1\}^m : S(x)\oplus S(x\oplus\Delta x)=\Delta y\},
+ \label{eq:ddt}
+\end{equation}
+de modo que la probabilidad de la transición \(\Delta x\to\Delta y\) es \(\mathrm{DDT}_S[\Delta x][\Delta y]/2^m\).
 
-El algoritmo de Dürr--Høyer busca el índice de un mínimo de una tabla no ordenada con un número esperado de consultas del orden de la raíz cuadrada del tamaño de la tabla, bajo el modelo de acceso que permite comparar los valores mediante consultas cuánticas \citep{durr1999}. Para maximizar una puntuación puede minimizarse su opuesto, o bien adaptarse la comparación. Si la tabla contiene \(2^b\) puntuaciones, el número de consultas a la rutina de evaluación puede escalar como \(O(2^{b/2})\), sujeto a los supuestos del algoritmo y a la probabilidad de éxito elegida.
+Una \emph{característica diferencial} especifica la diferencia en cada ronda intermedia; su probabilidad se aproxima por el producto de las probabilidades de las transiciones de las S-cajas activas. Esta aproximación es exacta en promedio sobre las claves para los cifradores de Markov con subclaves independientes \citep{lai1991}. Un \emph{diferencial} fija solo las diferencias de entrada y salida y su probabilidad es la suma sobre todas las características que lo realizan, por lo que es mayor o igual que la de cualquiera de ellas. Un par que sigue la característica se denomina \emph{par correcto}.
 
-Kaplan et al. distinguen ataques que usan datos clásicos con procesamiento cuántico de ataques que también consultan el cifrador en superposición; la diferencia modifica qué datos puede asumir el adversario y, por tanto, la interpretación de la complejidad \citep{kaplan2017}. En este Trabajo el modelo y la disponibilidad de los pares deben quedar fijados explícitamente antes de comparar costes.
+\subsection{Ataque de recuperación de subclave de última ronda}
 
-\section{Estado actual de la investigación}
+Si se conoce un diferencial de \(R-1\) rondas \(\Delta P\to\Delta U\) con probabilidad \(p\) apreciablemente mayor que \(2^{-n}\), el atacante cifra \(N\) pares con diferencia \(\Delta P\) y, para cada candidato \(k\) de los bits de la última subclave que afectan a las S-cajas activas, invierte parcialmente la última ronda y comprueba si se obtiene \(\Delta U\). El recuento de pares compatibles produce la puntuación \(A(k)\) de la Ecuación~\ref{eq:score}. Antes de contar, los pares cuyos textos cifrados no son compatibles con \(\Delta U\), por ejemplo porque presentan diferencias no nulas en S-cajas que deberían ser inactivas, pueden descartarse sin conocer la clave; esta operación se denomina \emph{filtrado} \citep{biham1991}.
 
-Kaplan et al. analizan versiones cuánticas de criptoanálisis diferencial y lineal y muestran que no todas las variantes reciben la misma aceleración; también discuten que el mejor ataque clásico no necesariamente se transforma en el mejor ataque cuántico \citep{kaplan2017}. Zhou et al. describen un ataque diferencial cuántico que combina búsqueda de mínimo o máximo con conteo cuántico para obtener las puntuaciones y presentan una propuesta de circuito \citep{zhou2019}. Estas contribuciones proporcionan el marco inmediato de este estudio.
+El éxito del ataque depende de que la puntuación del candidato correcto se separe de la de los incorrectos. \citet{biham1991} lo cuantifican con la relación señal/ruido
+\begin{equation}
+ S/N=\frac{2^{b}\,p}{\alpha\,\beta},
+ \label{eq:sn}
+\end{equation}
+donde \(b\) es el número de bits de subclave atacados, \(\beta\) la fracción de pares que supera el filtro y \(\alpha\) el número medio de candidatos sugeridos por cada par que lo supera. El análisis supone la \emph{hipótesis de aleatorización de la clave incorrecta}: al descifrar con un candidato erróneo, la diferencia obtenida se comporta como aleatoria. \citet{selcuk2008} deriva una expresión de la probabilidad de éxito en función de \(N\), \(p\) y de la ventaja buscada, que permite elegir \(N\) con criterio estadístico. En la práctica se toma \(N\approx c/p\) para una constante pequeña \(c\) \citep{heys2002}.
 
-La cuestión pendiente para la memoria es traducir dicho esquema al modelo de coste que realmente representa el código del proyecto. En particular, hay que establecer si la evaluación de \(A(k)\) recorre los \(N\) pares de forma secuencial, si existe reutilización de resultados y qué registros reversibles requiere. Sin esa especificación, \(O(2^{b/2})\) describe las llamadas a una función de puntuación, pero no el coste temporal total del ataque.
+\section{Fundamentos de computación cuántica para el criptoanálisis}
+\label{sec:fundamentos}
+
+La versión cuántica requiere representar los candidatos como estados, evaluar funciones de manera reversible y limpiar los registros auxiliares. Estos conceptos se introducen a continuación antes de presentar los algoritmos de búsqueda.
+
+\subsection{Estados, registros y medida}
+
+Un qubit es un sistema cuántico cuyo estado puro es un vector unitario de un espacio de Hilbert complejo de dimensión dos, \(\ket{\psi}=a_0\ket{0}+a_1\ket{1}\) con \(|a_0|^2+|a_1|^2=1\). Un registro de \(b\) qubits vive en el producto tensorial \((\mathbb{C}^2)^{\otimes b}\cong\mathbb{C}^{2^b}\), con base computacional \(\{\ket{k}:k\in\{0,1\}^b\}\). Aplicar la puerta de Hadamard a cada qubit de \(\ket{0}^{\otimes b}\) prepara la superposición uniforme
+\begin{equation}
+ \ket{s}=H^{\otimes b}\ket{0}^{\otimes b}=\frac{1}{\sqrt{2^b}}\sum_{k\in\{0,1\}^b}\ket{k},
+ \label{eq:uniforme}
+\end{equation}
+que representa simultáneamente todos los candidatos de subclave. La medida en la base computacional devuelve \(k\) con probabilidad igual al cuadrado del módulo de su amplitud, de modo que un algoritmo de búsqueda debe concentrar la amplitud en los candidatos deseados antes de medir \citep{nielsen2010}.
+
+\subsection{Oráculos reversibles y descomputación}
+
+La evolución de un sistema cuántico cerrado es unitaria y, por tanto, reversible. Una función clásica \(g:\{0,1\}^b\to\{0,1\}^m\) se incorpora a un circuito mediante el oráculo de bit \(U_g\ket{k}\ket{y}=\ket{k}\ket{y\oplus g(k)}\). Si \(g\) es booleana, preparar el registro de salida en \(\ket{-}=(\ket{0}-\ket{1})/\sqrt{2}\) convierte el oráculo de bit en un oráculo de fase, \(\ket{k}\mapsto(-1)^{g(k)}\ket{k}\), por el mecanismo de retroceso de fase \citep{nielsen2010}.
+
+Calcular \(g\) de forma reversible exige, en general, registros auxiliares que almacenan resultados intermedios. Si esos registros no se devuelven a \(\ket{0}\), quedan entrelazados con el registro de candidatos y destruyen la interferencia en la que se basa la búsqueda. La técnica estándar, debida a \citet{bennett1973}, consiste en calcular, copiar el resultado y ejecutar el cálculo en orden inverso para limpiar los auxiliares, lo que aproximadamente duplica el coste. Las operaciones aritméticas necesarias en este Trabajo (incremento de un contador y comparación con un umbral) disponen de construcciones reversibles conocidas; por ejemplo, el sumador de acarreo de \citet{cuccaro2004} implementa sumas y comparaciones con un único qubit auxiliar y un número lineal de puertas de Toffoli.
+
+\section{Búsqueda cuántica}
+\label{sec:busqueda}
+
+Los métodos de búsqueda cuántica concentran la probabilidad de medida en los elementos que satisfacen una condición o destacan según una puntuación. Esta sección presenta las herramientas que se emplean para construir la estrategia de recuperación.
+
+\subsection{Algoritmo de Grover y amplificación de amplitud}
+
+Sea \(g:\{0,1\}^b\to\{0,1\}\) con \(M\) soluciones. El algoritmo de Grover parte de \(\ket{s}\) y aplica repetidamente el operador \(G=D\,O_g\), donde \(O_g\) es el oráculo de fase y \(D=2\ket{s}\bra{s}-I\) la reflexión respecto de \(\ket{s}\) \citep{grover1996}. Si \(\sin^2\theta=M/2^b\), tras \(t\) iteraciones la probabilidad de medir una solución es \(\sin^2((2t+1)\theta)\), que se acerca a uno para \(t\approx\frac{\pi}{4}\sqrt{2^b/M}\). \citet{bbbv1997} demostraron que ningún algoritmo cuántico puede resolver la búsqueda no estructurada con menos de \(\Omega(\sqrt{2^b})\) consultas, y \citet{zalka1999} probó que Grover es exactamente óptimo y que su paralelización en \(P\) procesadores solo reduce el número de iteraciones secuenciales en un factor \(\sqrt{P}\). Cuando \(M\) es desconocido, el algoritmo de \citet{bbht1998} elige el número de iteraciones de forma aleatoria y creciente y encuentra una solución con \(O(\sqrt{2^b/M})\) consultas esperadas.
+
+\citet{bhmt2002} generalizaron el método a la \emph{amplificación de amplitud}: dado cualquier algoritmo \(\mathcal{A}\) que produce una solución con probabilidad \(a\), basta con \(O(1/\sqrt{a})\) repeticiones de \(\mathcal{A}\) y de su inverso, en lugar de las \(O(1/a)\) clásicas. Este resultado es el que permite acelerar la búsqueda de pares correctos en el criptoanálisis diferencial cuántico (Sección~\ref{sec:estado}).
+
+\subsection{Estimación de amplitud y conteo cuántico}
+
+La \emph{estimación de amplitud} combina la amplificación con la estimación de fase para aproximar \(a\) con error aditivo \(\varepsilon\) usando \(O(1/\varepsilon)\) aplicaciones de \(\mathcal{A}\), frente a las \(O(1/\varepsilon^2)\) muestras de un método clásico \citep{bhmt2002}. Su caso particular, el \emph{conteo cuántico}, estima el número de soluciones de una función booleana \citep{bht1998counting}. Aplicado a la Ecuación~\ref{eq:score}, permitiría estimar \(A(k)\) con \(O(\sqrt{N})\) consultas a los pares en lugar de recorrerlos todos, pero produce un valor aproximado y requiere que los pares sean accesibles en superposición (Sección~\ref{sec:modelos}).
+
+\subsection{Búsqueda del mínimo: algoritmo de Dürr--Høyer}
+
+\citet{durr1996} reducen la búsqueda del índice del mínimo de una tabla \(T\) de tamaño \(2^b\) a una secuencia de búsquedas de Grover. Se elige un índice umbral \(y\) al azar; se aplica el algoritmo de \citet{bbht1998} para encontrar un índice \(k\) con \(T[k]<T[y]\); si se encuentra, se actualiza \(y\gets k\), y se repite hasta agotar un presupuesto de consultas. Los autores demuestran que el número esperado de consultas para obtener el mínimo con probabilidad al menos \(1/2\) es inferior a \(22{,}5\sqrt{2^b}\). La búsqueda del máximo se obtiene invirtiendo la comparación. El algoritmo supone que el oráculo compara valores exactos de \(T\); si los valores se obtienen mediante una estimación con error, como ocurre con el conteo cuántico, la garantía deja de aplicarse directamente.
+
+\section{Modelos de adversario y acceso a los datos}
+\label{sec:modelos}
+
+\citet{kaplan2016diff} distinguen dos modelos de adversario cuántico, que la literatura posterior ha adoptado como estándar:
+\begin{itemize}
+ \item \textbf{Modelo Q1.} El adversario dispone de un ordenador cuántico, pero solo puede consultar el cifrador de forma clásica. Los pares de textos son datos clásicos.
+ \item \textbf{Modelo Q2.} El adversario puede consultar el oráculo de cifrado en superposición, \(\sum_x\ket{x}\ket{0}\mapsto\sum_x\ket{x}\ket{E_K(x)}\). Es un modelo más fuerte, cuya realizabilidad práctica es discutida, pero que acota la seguridad en el peor caso.
+\end{itemize}
+En el modelo Q1, un algoritmo cuántico que necesite los \(N\) pares dentro del oráculo debe obtenerlos de algún modo. Existen dos opciones. La primera es \emph{cablear} los datos en el circuito como constantes clásicas que controlan puertas, lo que no requiere memoria cuántica pero hace que cada llamada al oráculo cueste \(\Omega(N)\) puertas. La segunda es usar una memoria cuántica de acceso aleatorio (QRAM) que realice \(\sum_i\ket{i}\ket{0}\mapsto\sum_i\ket{i}\ket{x_i}\) \citep{glm2008qram}. La QRAM permite el acceso en superposición que exige el conteo cuántico, pero su coste físico es objeto de debate: una realización en el modelo de circuito necesita \(\Theta(N)\) puertas por consulta, y las propuestas con coste logarítmico requieren hardware activo con tolerancia a errores aún no demostrado \citep{jaques2023qram}. \citet{aaronson2015} advirtió de que muchos algoritmos cuánticos con aceleración aparente trasladan el coste real a la carga de los datos. Cualquier comparación de costes debe, por tanto, declarar el modelo de acceso.
+
+\section{Estado actual del criptoanálisis cuántico de cifradores simétricos}
+\label{sec:estado}
+
+Los ataques cuánticos a cifradores simétricos incluyen tanto la búsqueda genérica de claves como técnicas que aprovechan estructuras particulares del cifrador. Se revisan estas líneas para situar la propuesta y precisar con qué referencias debe compararse.
+
+\subsection{Búsqueda exhaustiva de la clave con Grover}
+
+El ataque cuántico genérico contra un cifrador con clave de \(\kappa\) bits es la búsqueda de Grover sobre el espacio de claves, con \(\approx\frac{\pi}{4}2^{\kappa/2}\) evaluaciones reversibles del cifrador. \citet{grassl2016} construyeron los primeros circuitos completos del oráculo de AES y estimaron sus recursos en qubits lógicos y puertas \(T\); \citet{jaques2020} redujeron esos costes e introdujeron en el análisis la restricción de profundidad máxima del circuito, que, por el resultado de \citet{zalka1999}, encarece notablemente la búsqueda. El proceso de estandarización poscuántica del NIST define sus categorías de seguridad precisamente en relación con el coste de este ataque sobre AES \citep{nist2016}. Esta búsqueda es la \emph{referencia} frente a la que debe medirse cualquier otro ataque cuántico de recuperación de clave.
+
+\subsection{Ataques basados en el algoritmo de Simon}
+
+El algoritmo de Simon encuentra en tiempo polinómico el periodo oculto de una función con estructura \(f(x)=f(x\oplus s)\) \citep{simon1997}. \citet{kuwakado2010} lo usaron para distinguir un cifrador de Feistel de tres rondas de una permutación aleatoria, y posteriormente para recuperar la clave del cifrador de Even--Mansour \citep{kuwakado2012}. \citet{kaplan2016simon} extendieron la técnica para romper modos de autenticación y de cifrado autenticado ampliamente usados, como CBC-MAC, PMAC, GMAC, GCM y OCB, así como ataques por deslizamiento. \citet{leander2017} combinaron Grover y Simon para atacar la construcción FX. Todos estos ataques ofrecen aceleraciones exponenciales, pero requieren el modelo Q2. \citet{bonnetain2019} propusieron el algoritmo de Simon \emph{fuera de línea}, que obtiene ataques en el modelo Q1 contra ciertas construcciones con un compromiso entre datos clásicos y cómputo cuántico.
+
+\subsection{Criptoanálisis diferencial y lineal cuántico}
+
+\citet{zhou2019} plantean un ataque diferencial cuántico que combina la búsqueda de extremos de \citet{durr1996} con el conteo cuántico para obtener las puntuaciones de los candidatos, y esbozan el circuito asociado. Su análisis expresa la complejidad en número de consultas, sin especificar cómo accede el oráculo a los pares de textos ni cuánto cuesta ese acceso.
+
+\citet{kaplan2016diff} realizan el análisis más completo de las versiones cuánticas del criptoanálisis diferencial simple, del diferencial truncado y del lineal, en los modelos Q1 y Q2. Sus conclusiones principales son tres. En primer lugar, en el modelo Q2 la amplificación de amplitud permite encontrar un par correcto con \(O(\sqrt{1/p})\) consultas en superposición en lugar de \(O(1/p)\) consultas clásicas; la ganancia procede, por tanto, de la búsqueda sobre los \emph{datos}, no sobre las subclaves. En segundo lugar, la aceleración no es uniforme: los ataques diferenciales truncados y algunos lineales ganan menos que el diferencial simple. En tercer lugar, un ataque cuántico solo es significativo si resulta más barato que la búsqueda de Grover sobre la clave completa, lo que implica que el mejor diferencial para un ataque cuántico puede no coincidir con el mejor diferencial clásico.
+
+Trabajos posteriores han trasladado este razonamiento a otras familias de ataques estadísticos; por ejemplo, \citet{frixons2022} estudian versiones cuánticas de los ataques bumerán y los aplican a cifradores concretos.
+
+\section{Análisis crítico frente a las necesidades del Trabajo}
+\label{sec:critica}
+
+La Tabla~\ref{tab:estado} resume los trabajos revisados y valora si responden a la pregunta de investigación del Capítulo 1, que exige un coste total, una instancia concreta y un modelo de acceso explícito.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{p{0.17\textwidth} p{0.08\textwidth} p{0.22\textwidth} p{0.40\textwidth}}
+\hline\hline
+Trabajo & Modelo & Técnica & Limitación respecto de este Trabajo \\
+\hline
+\citet{grassl2016}; \citet{jaques2020} & Q1 & Grover sobre la clave completa & Costes completos del oráculo, pero no explotan la estructura diferencial. Proporcionan la referencia de comparación. \\
+\citet{kuwakado2010,kuwakado2012}; \citet{kaplan2016simon}; \citet{leander2017} & Q2 & Simon (y Grover) & Aceleración exponencial solo para construcciones con periodo oculto y con consultas en superposición. No aplicable a la recuperación diferencial de subclaves en Q1. \\
+\citet{bonnetain2019} & Q1 & Simon fuera de línea & Ataca construcciones específicas (Even--Mansour, FX); no aborda ataques estadísticos. \\
+\citet{zhou2019} & No explícito & Dürr--Høyer y conteo cuántico & Complejidad en consultas; no contabiliza el coste del oráculo ni el acceso a los datos; no analiza el efecto del error del conteo en la búsqueda de máximo. \\
+\citet{kaplan2016diff} & Q1 y Q2 & Amplificación sobre pares y sobre claves & Análisis asintótico general; no instancia el oráculo de puntuación ni estima qubits o puertas para un cifrador concreto. \\
+\citet{frixons2022} & Q2 & Bumerán cuántico & Otra familia de ataques; confirma la necesidad de comparar con Grover. \\
+\hline
+\end{tabular}
+\caption[Trabajos sobre criptoanálisis cuántico de cifradores simétricos]{Comparación de los trabajos revisados según el modelo de adversario, la técnica cuántica empleada y su limitación respecto de los objetivos de este Trabajo. Fuente: elaboración propia.}
+\label{tab:estado}
+\end{table}
+
+Del análisis se desprenden tres carencias que este Trabajo aborda. Primera: en los trabajos revisados, la aceleración de la búsqueda de subclaves se expresa en número de consultas, sin un oráculo de puntuación concreto ni una estimación de sus recursos. Segunda: la comparación habitual con la búsqueda clásica exhaustiva de la subclave ignora las optimizaciones del ataque clásico real (filtrado y contadores) y la referencia cuántica pertinente, que es Grover sobre la clave completa. Tercera: el efecto de las constantes, como el factor \(22{,}5\) de Dürr--Høyer, no se ha evaluado para los tamaños de subclave pequeños que son habituales en los ataques de última ronda, donde puede anular la ventaja asintótica. El Trabajo aborda estas carencias sobre una instancia en la que todas las magnitudes pueden calcularse de forma exacta.

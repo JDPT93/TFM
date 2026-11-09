@@ -1,41 +1,195 @@
-\chapter{Diseño de la solución y análisis preliminar}
+\chapter{Objetivos}
+\label{chap:solucion}
 
-La solución compara la búsqueda exhaustiva clásica de la mejor subclave con una búsqueda cuántica de máximo sobre la misma función de puntuación. La comparación se expresa primero en consultas al oráculo y luego en coste total, de modo que quede visible el peso de evaluar la puntuación.
+Este capítulo describe la solución diseñada para satisfacer los requisitos del Capítulo~\ref{chap:requisitos}. La Sección~\ref{sec:clasico} presenta el ataque clásico de referencia; la Sección~\ref{sec:estadistica}, su análisis estadístico; las secciones~\ref{sec:oraculo} y~\ref{sec:busqueda-q}, el oráculo reversible y la búsqueda cuántica; la Sección~\ref{sec:costes}, el modelo de costes; y la Sección~\ref{sec:resultados-prelim}, los primeros resultados. Los resultados de este capítulo son analíticos: se derivan de la DDT y de los algoritmos, y la evaluación experimental los contrastará.
 
-\section{Evaluación de la puntuación}
+\section{Ataque clásico de referencia}
+\label{sec:clasico}
 
-Para un candidato \(k\), el cálculo directo de \(A(k)\) evalúa el filtro sobre los \(N\) pares. Si una evaluación del filtro cuesta \(c\) operaciones clásicas, el trabajo directo es del orden de \(cN\). En una realización cuántica se requiere una unidad reversible \(U_A\) que calcule la puntuación en un registro auxiliar, permita comparar con un umbral y restaure los registros de trabajo. Denotamos por \(C_A(N,b)\) el coste total de esta evaluación reversible, incluyendo preparación y descomputación.
+El ataque clásico sigue el esquema de \citet{biham1991} con las optimizaciones habituales descritas por \citet{heys2002}. Primero se filtran los pares con una comprobación que solo depende de los textos cifrados; después, cada par superviviente vota por los candidatos compatibles. El Algoritmo~\ref{alg:clasico} lo resume.
 
-La búsqueda de Dürr--Høyer aplica repetidamente una búsqueda cuántica condicionada por el valor de referencia para encontrar un candidato mejor. Adaptada a una tabla de \(2^b\) valores, usa del orden de \(2^{b/2}\) evaluaciones de la función de puntuación para una probabilidad de éxito constante; el factor de amplificación de probabilidad y las comparaciones deben informarse al fijar una probabilidad mayor \citep{durr1999}. Zhou et al. describen una construcción de criptoanálisis diferencial que combina la búsqueda de extremos con conteo cuántico, por lo que la función realmente evaluada debe seguirse en el circuito y no resumirse como una consulta gratuita \citep{zhou2019}.
+\begin{algorithm}[H]
+\caption{Ataque diferencial clásico de última ronda}
+\label{alg:clasico}
+\begin{algorithmic}[1]
+\Require \(N\) pares \((C_i,C'_i)\) cifrados a partir de textos claros con diferencia \(\texttt{0B00}\)
+\Ensure Candidatos de los 8 bits de \(K_5\) ordenados por puntuación
+\State \(T[k]\gets 0\) para todo \(k\in\{0,1\}^8\)
+\For{\(i=1\) \textbf{to} \(N\)}
+ \State \(\delta\gets C_i\oplus C'_i\)
+ \If{\(\delta_1=\delta_3=0\) \textbf{and} \(\delta_2,\delta_4\in\{\texttt{3},\texttt{5},\texttt{C},\texttt{D},\texttt{E},\texttt{F}\}\)} \Comment{filtro}
+  \For{\textbf{each} \(k=(k_2,k_4)\in\{0,1\}^8\)}
+   \State \(u_j\gets S^{-1}(C_{i,j}\oplus k_j)\oplus S^{-1}(C'_{i,j}\oplus k_j)\) para \(j\in\{2,4\}\)
+   \If{\(u_2=u_4=\texttt{6}\)} \(T[k]\gets T[k]+1\) \EndIf
+  \EndFor
+ \EndIf
+\EndFor
+\State \Return candidatos ordenados por \(T[k]\) decreciente
+\end{algorithmic}
+\end{algorithm}
 
-\section{Costes de referencia}
+El bucle interior de las líneas 5--8 puede sustituirse por una consulta a una tabla precalculada. Un valor \(k_j\) es compatible si \(x=S^{-1}(C_{i,j}\oplus k_j)\) cumple \(S(x)\oplus S(x\oplus\texttt{6})=\delta_j\); basta, por tanto, precalcular para cada \(\delta\) el conjunto \(X_\delta=\{x: S(x)\oplus S(x\oplus\texttt{6})=\delta\}\), de tamaño \(\mathrm{DDT}_S[\texttt{6}][\delta]\), y tomar \(k_j=C_{i,j}\oplus S(x)\) para cada \(x\in X_{\delta_j}\). Con esta variante, cada par superviviente cuesta tantas operaciones como candidatos sugiere, y no \(2^b\).
 
-En la búsqueda exhaustiva clásica, evaluar todos los candidatos requiere \(2^b\) puntuaciones. Con coste \(cN\) por puntuación, el orden de trabajo es \(O(cN2^b)\), además del almacenamiento de contadores si se materializan. Para la búsqueda cuántica, la expresión de consultas es \(O(2^{b/2})\), pero al multiplicarla por el coste de la evaluación reversible se obtiene el orden de referencia
+\section{Análisis estadístico de la instancia}
+\label{sec:estadistica}
+
+La probabilidad de la característica y la tasa de filtrado determinan cuántos pares aportan información y cuántos candidatos espurios pueden acumular votos. Se calculan primero las magnitudes de filtrado y de sugerencia de candidatos; después se estima la relación señal/ruido para la instancia seleccionada.
+
+\subsection{Tasa de filtrado}
+
+Un par incorrecto tiene una diferencia de texto cifrado aproximadamente uniforme. Supera el filtro si los fragmentos 1 y 3 son nulos (probabilidad \(2^{-8}\)) y los fragmentos 2 y 4 pertenecen al conjunto de seis salidas posibles (probabilidad \((6/16)^2\)):
 \begin{equation}
- T_{Q}=O\!\left(C_A(N,b)\,2^{b/2}\right).
- \label{eq:quantum-cost}
+ \beta=2^{-8}\left(\frac{6}{16}\right)^2=\frac{9}{16\,384}\approx 5{,}5\cdot 10^{-4}.
+ \label{eq:beta}
 \end{equation}
-Si una evaluación reversible recorre los \(N\) pares sin estructura adicional y cuesta \(O(c_QN)\), entonces la estimación resultante es \(O(c_QN2^{b/2})\). Esta expresión es condicional: no incluye automáticamente carga de datos, construcción del oráculo, latencia, profundidad, corrección de errores ni coste de ejecutar el circuito en hardware.
+Los pares correctos superan siempre el filtro. El número esperado de pares supervivientes es, por tanto,
+\begin{equation}
+ N'\approx N\,(p+\beta).
+ \label{eq:nprima}
+\end{equation}
+
+\subsection{Candidatos sugeridos por par}
+
+Para un par superviviente con diferencia \(\delta_j\) en el fragmento activo \(j\), el número de valores \(k_j\) compatibles es \(\mathrm{DDT}_S[\texttt{6}][\delta_j]\). Si el par es incorrecto, \(\delta_j\) es uniforme sobre las seis salidas posibles y la media por fragmento es \((4+4+2+2+2+2)/6=8/3\); con dos fragmentos activos, \(\alpha=(8/3)^2=64/9\approx 7{,}1\). Si el par es correcto, \(\delta_j\) toma cada valor con probabilidad \(\mathrm{DDT}_S[\texttt{6}][\delta_j]/16\) y la media es \(\sum_\delta \mathrm{DDT}_S[\texttt{6}][\delta]^2/16=48/16=3\) por fragmento, es decir, 9 candidatos por par correcto.
+
+\subsection{Relación señal/ruido y número de pares}
+
+Sustituyendo en la Ecuación~\ref{eq:sn},
+\begin{equation}
+ S/N=\frac{2^{8}\cdot\frac{27}{1024}}{\frac{64}{9}\cdot\frac{9}{16\,384}}=1728.
+ \label{eq:sn-valor}
+\end{equation}
+Una relación señal/ruido tan alta indica que el candidato correcto se separa con claridad de los incorrectos con pocos pares correctos \citep{biham1991}. La Tabla~\ref{tab:estadistica} recoge las magnitudes esperadas para dos valores de \(N\). Con \(N=5000\), el valor usado por \citet{heys2002}, se esperan unos 132 pares correctos y menos de 3 pares incorrectos supervivientes.
 
 \begin{table}[H]
 \centering
-\begin{tabular}{p{0.22\textwidth} p{0.34\textwidth} p{0.34\textwidth}}
+\begin{tabular}{c c c c c}
 \hline\hline
-Recurso & Búsqueda exhaustiva clásica & Búsqueda cuántica de máximo \\
+\(N\) & Pares correctos \(Np\) & Incorrectos supervivientes \(N\beta\) & \(N'\) & Bits del contador \(m\) \\
 \hline
-Candidatos explorados & \(2^b\) puntuaciones & \(O(2^{b/2})\) consultas a la puntuación \\
-Coste de puntuar & \(O(cN)\) por candidato & \(C_A(N,b)\) reversible por consulta \\
-Trabajo de referencia & \(O(cN2^b)\) & \(O(C_A(N,b)2^{b/2})\) \\
-Datos & \(N\) pares disponibles & \(N\) pares y acceso coherente especificado \\
-Memoria & Depende de la tabla de conteo & Registros de candidatos, datos y auxiliares \\
+1000 & 26,4 & 0,55 & \(\approx 27\) & 5 \\
+5000 & 131,8 & 2,75 & \(\approx 135\) & 8 \\
 \hline
 \end{tabular}
-\caption[Comparación preliminar de costes]{Comparación asintótica preliminar bajo el supuesto de que ambos métodos evalúan la misma función de puntuación. Las expresiones cuánticas no incluyen la carga de datos ni los costes físicos del circuito. Fuente: elaboración propia a partir de \cite{durr1999,zhou2019}.}
+\caption[Magnitudes esperadas del filtrado]{Número esperado de pares correctos, de pares incorrectos que superan el filtro y tamaño del contador reversible, \(m=\lceil\log_2(N'+1)\rceil\). Fuente: elaboración propia a partir de las ecuaciones~\ref{eq:p}, \ref{eq:beta} y~\ref{eq:nprima}.}
+\label{tab:estadistica}
+\end{table}
+
+Un candidato incorrecto recibe, de un par incorrecto superviviente, un voto con probabilidad \(\alpha/2^8\), y también puede recibir votos de pares correctos que sugieren varios candidatos. La distribución exacta de las puntuaciones incorrectas, y en particular la puntuación del mejor candidato incorrecto, se medirá en la evaluación experimental, porque de ella depende la elección del umbral de la Sección~\ref{sec:busqueda-q}.
+
+\section{Diseño del oráculo reversible}
+\label{sec:oraculo}
+
+Para usar la puntuación en una búsqueda cuántica, el cómputo debe mantener la información necesaria para invertir cada operación y devolver los auxiliares a cero al finalizar. Se detallan los registros requeridos y la secuencia lógica de evaluación, comparación y descomputación.
+
+\subsection{Registros}
+
+El oráculo actúa sobre los registros de la Tabla~\ref{tab:registros}. Los \(N'\) pares filtrados se cablean en el circuito: los bits de los fragmentos 2 y 4 de \(C_i\) y \(C'_i\) determinan qué puertas \(X\) se aplican sobre el registro de candidatos.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{p{0.22\textwidth} p{0.14\textwidth} p{0.54\textwidth}}
+\hline\hline
+Registro & Qubits & Función \\
+\hline
+Candidatos \(\ket{k}\) & 8 & Bits \(k_2\) y \(k_4\) de \(K_5\), en superposición uniforme \\
+Trabajo \(\ket{w}\) & 16 & \(S^{-1}(C_{i,j}\oplus k_j)\) y \(S^{-1}(C'_{i,j}\oplus k_j)\) para \(j\in\{2,4\}\) \\
+Indicador \(\ket{f}\) & 1 & \(f_i(k)\) para el par en curso \\
+Contador \(\ket{c}\) & \(m\) & \(A(k)\), con \(m=8\) para \(N=5000\) \\
+Resultado \(\ket{r}\) & 1 & Preparado en \(\ket{-}\); recibe \([A(k)\ge\theta]\) y produce el cambio de fase \\
+Auxiliares & \(a\) & Comparador y descomposición de puertas multicontroladas \\
+\hline
+\end{tabular}
+\caption[Registros del oráculo de puntuación]{Registros del oráculo de puntuación para la instancia del Trabajo. Fuente: elaboración propia.}
+\label{tab:registros}
+\end{table}
+
+Sin optimizar, el oráculo requiere \(34+a\) qubits lógicos para \(N=5000\). Con un comparador de acarreo \citep{cuccaro2004} y la reutilización de los registros de trabajo como auxiliares limpios, se estima \(a\le 10\), es decir, un total del orden de 35 a 45 qubits. Este tamaño supera el límite del requisito RNF3, por lo que la simulación exacta se hará sobre una versión reducida que ataca un único fragmento (\(b=4\)): con 4 qubits de candidatos, 8 de trabajo, 1 indicador, un contador de 5 qubits y el qubit de resultado, la versión reducida necesita \(19+a\) qubits.
+
+\subsection{Algoritmo del oráculo}
+
+El oráculo de fase \(O_\theta\ket{k}=(-1)^{[A(k)\ge\theta]}\ket{k}\) se construye como indica el Algoritmo~\ref{alg:oraculo}. Cada par se procesa con el esquema de Bennett: se calcula el indicador, se incrementa el contador controlado por él y se descomputa el indicador. Tras procesar todos los pares, la comparación con el umbral marca la fase y la acumulación se repite en orden inverso para limpiar el contador.
+
+\begin{algorithm}[H]
+\caption{Oráculo reversible de puntuación \(O_\theta\)}
+\label{alg:oraculo}
+\begin{algorithmic}[1]
+\Require Registro \(\ket{k}\); registros \(\ket{w},\ket{f},\ket{c}\) a cero; \(\ket{r}=\ket{-}\); pares filtrados \((C_i,C'_i)_{i=1}^{N'}\)
+\Procedure{Acumular}{}
+ \For{\(i=1\) \textbf{to} \(N'\)}
+  \State Aplicar \(X\) en \(\ket{k}\) según los bits de \(C_{i,2},C_{i,4}\); calcular \(S^{-1}\) fuera de lugar en \(\ket{w}\); deshacer las \(X\)
+  \State Repetir el paso anterior con \(C'_{i,2},C'_{i,4}\) sobre la otra mitad de \(\ket{w}\)
+  \State Con CNOT, obtener en \(\ket{w}\) las diferencias \(u_2,u_4\)
+  \State \(\ket{f}\gets\ket{f\oplus[u_2=\texttt{6}\wedge u_4=\texttt{6}]}\) \Comment{Toffoli con 8 controles}
+  \State Incrementar \(\ket{c}\) controlado por \(\ket{f}\)
+  \State Descomputar \(\ket{f}\) y \(\ket{w}\) (pasos 6--3 en orden inverso)
+ \EndFor
+\EndProcedure
+\State \Call{Acumular}{}
+\State \(\ket{r}\gets\ket{r\oplus[c\ge\theta]}\) \Comment{retroceso de fase: \((-1)^{[A(k)\ge\theta]}\)}
+\State \Call{Acumular}{}\(^{-1}\) \Comment{limpia \(\ket{c}\)}
+\end{algorithmic}
+\end{algorithm}
+
+Si \(g_S\) es el coste de una S-caja inversa fuera de lugar, \(g_{=}\) el de la comprobación de igualdad, \(g_{+}\) el de un incremento controlado de \(m\) bits y \(g_{\ge}\) el de la comparación, el coste de una llamada es
+\begin{equation}
+ C_{O}=2N'\left(8g_S+2g_{=}+g_{+}\right)+g_{\ge}.
+ \label{eq:coste-oraculo}
+\end{equation}
+En unidades de \emph{evaluaciones reversibles del filtro} (cálculo y descomputación de \(f_i(k)\) para un par), una llamada cuesta unas \(2N'\) evaluaciones: unas 270 para \(N=5000\). El cálculo de \(g_S\), \(g_{=}\), \(g_{+}\) y \(g_{\ge}\) en puertas de Toffoli y CNOT forma parte de la implementación en Qiskit prevista para la Entrega 3.
+
+\section{Búsqueda cuántica}
+\label{sec:busqueda-q}
+
+Se consideran dos estrategias de búsqueda sobre el oráculo anterior.
+
+\textbf{Búsqueda de máximo (Dürr--Høyer).} El umbral \(\theta\) se fija en cada etapa a la puntuación del mejor candidato encontrado hasta el momento, \(\theta=A(y)+1\), y se busca un candidato que lo supere con el algoritmo de \citet{bbht1998}. No requiere conocer la distribución de puntuaciones, pero el número esperado de llamadas está acotado por \(22{,}5\sqrt{2^b}=360\) para \(b=8\) \citep{durr1996}. Además, cambiar \(\theta\) en cada etapa obliga a recompilar el comparador.
+
+\textbf{Búsqueda con umbral fijo (Grover).} Si el análisis estadístico permite elegir un umbral \(\theta\) que solo supere el candidato correcto (por ejemplo, entre la puntuación esperada del mejor incorrecto y \(Np\)), basta una búsqueda de Grover con \(M=1\). Con \(\sin\vartheta=2^{-4}\), el número óptimo de iteraciones es \(\lfloor\pi/(4\vartheta)\rfloor=12\), con probabilidad de éxito \(\sin^2(25\vartheta)\approx 0{,}9999\). Si el umbral admite varios candidatos, el algoritmo de \citet{bbht1998} los encuentra sin conocer \(M\) y la verificación clásica descarta los falsos positivos. El riesgo de esta estrategia es que un umbral demasiado alto excluya al candidato correcto; la evaluación medirá ese riesgo con la distribución empírica de puntuaciones.
+
+\section{Modelo de costes}
+\label{sec:costes}
+
+La Tabla~\ref{tab:costes} compara las estrategias en el modelo Q1 con datos cableados, para \(N=5000\), \(N'\approx 135\) y \(b=8\). Todos los ataques diferenciales obtienen y filtran los mismos \(N\) pares, lo que supone \(N\) consultas clásicas al cifrador y \(N\) comprobaciones de filtro, comunes a todas las variantes.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{p{0.28\textwidth} p{0.27\textwidth} p{0.35\textwidth}}
+\hline\hline
+Estrategia & Expresión & Valor para la instancia \\
+\hline
+Clásica sin filtro & \(N\,2^b\) & \(1{,}28\cdot 10^6\) evaluaciones clásicas \\
+Clásica con filtro y contadores & \(N+N'\,2^b\) & \(5000+34\,560\) evaluaciones clásicas \\
+Clásica con filtro y DDT inversa & \(N+\approx 9N'\) & \(5000+\approx 1200\) consultas a tabla \\
+Dürr--Høyer & \(N+22{,}5\sqrt{2^b}\cdot 2N'\) & \(5000\) clásicas \(+\le 97\,200\) reversibles \\
+Grover con umbral (\(M=1\)) & \(N+\frac{\pi}{4}\sqrt{2^b}\cdot 2N'\) & \(5000\) clásicas \(+\approx 3240\) reversibles \\
+Grover sobre la clave completa & \(\frac{\pi}{4}2^{\kappa/2}\), \(\kappa=80\) & \(\approx 8{,}6\cdot 10^{11}\) cifrados reversibles (clave completa) \\
+\hline
+\end{tabular}
+\caption[Comparación de costes en el modelo Q1]{Comparación de costes en el modelo Q1 con datos cableados. Las evaluaciones reversibles son mucho más caras que las clásicas, porque incluyen la descomputación y, en hardware real, la corrección de errores. La búsqueda de Grover sobre la clave completa recupera los 80 bits y no es directamente comparable con la recuperación parcial de 8 bits. Fuente: elaboración propia.}
 \label{tab:costes}
 \end{table}
 
-\section{Resultados preliminares y cuestiones pendientes}
+\subsection{Modelos alternativos}
 
-El análisis confirma una reducción cuadrática en el número de candidatos consultados, de \(2^b\) a un orden \(2^{b/2}\), si se cumplen las hipótesis del algoritmo de búsqueda y la evaluación reversible está disponible. El factor \(N\) permanece en el coste de una puntuación directa sobre todos los pares. Por tanto, la ventaja en consultas no equivale a una reducción cuadrática de todos los recursos ni de la duración real.
+\textbf{Q1 con QRAM y conteo cuántico.} Si los pares se almacenan en una QRAM, el conteo cuántico estimaría \(A(k)\) con \(O(\sqrt{N'}/\varepsilon)\) consultas en lugar de recorrer los \(N'\) pares \citep{bht1998counting}. Para \(N'\approx 135\), la ganancia potencial es de un orden de magnitud como máximo, y desaparece si cada consulta a la QRAM cuesta \(\Theta(N')\) puertas, como ocurre en su realización en el modelo de circuito \citep{jaques2023qram}. Además, las puntuaciones aproximadas invalidan la garantía de Dürr--Høyer, que supone comparaciones exactas.
 
-Para cerrar esta comparación se debe inspeccionar y ejecutar el repositorio proporcionado, identificar el cifrador y los parámetros concretos y medir el coste de conteo para distintos tamaños de \(N\) y \(b\). También deben registrarse la precisión o éxito de recuperación, los empates y el número de repeticiones. Esos datos se incorporarán progresivamente al TFE a medida que se completen las ejecuciones verificables. Por el momento, esta sección presenta una deducción analítica, no resultados experimentales.
+\textbf{Q2.} Con consultas en superposición al cifrador, la amplificación de amplitud permite encontrar un par correcto con \(O(\sqrt{1/p})\approx O(6)\) consultas en lugar de \(O(1/p)\approx 38\) \citep{kaplan2016diff}. Es la única variante que reduce el término \(N\), que domina el coste en todas las estrategias en Q1. Su análisis detallado para la instancia se incluirá en la evaluación.
+
+\section{Primeros resultados}
+\label{sec:resultados-prelim}
+
+El análisis de este capítulo produce los siguientes resultados, todos analíticos y verificables a partir de la DDT de la S-caja:
+
+\begin{enumerate}
+ \item[R1.] La característica de la Tabla~\ref{tab:caracteristica} tiene probabilidad \(p=27/1024\approx 2^{-5{,}25}\). El filtro de textos cifrados tiene tasa \(\beta=9/16\,384\), los pares incorrectos supervivientes sugieren en media \(\alpha=64/9\) candidatos y la relación señal/ruido es \(S/N=1728\).
+ \item[R2.] Con \(N=5000\), solo unos 135 pares superan el filtro, de los cuales unos 132 son correctos. El filtrado clásico previo reduce en un factor \(N/N'\approx 37\) el número de pares que el oráculo cuántico debe procesar y reduce el contador a 8 qubits.
+ \item[R3.] El oráculo de puntuación para la instancia completa necesita del orden de 35 a 45 qubits lógicos y unas \(2N'\approx 270\) evaluaciones reversibles del filtro por llamada. La versión reducida con \(b=4\) cabe en el límite de simulación exacta.
+ \item[R4.] La cota de Dürr--Høyer, \(22{,}5\sqrt{2^b}\) llamadas, es menor que las \(2^b\) evaluaciones de la búsqueda exhaustiva solo si \(2^{b/2}>22{,}5\), es decir, si \(b\ge 9\). Para \(b=8\), la cota (360) supera a los 256 candidatos. La cota es conservadora y el número real de llamadas puede ser menor; la evaluación lo medirá.
+ \item[R5.] Cuando el análisis estadístico permite fijar un umbral, la búsqueda de Grover con \(M=1\) necesita 12 iteraciones frente a las \(\le 360\) llamadas de Dürr--Høyer.
+ \item[R6.] En el modelo Q1, ninguna estrategia cuántica mejora el coste total del ataque clásico con DDT inversa: el término común \(N\) domina, y el ataque clásico procesa los pares supervivientes con unas 1200 consultas a tabla, frente a las unas 3240 evaluaciones reversibles de la mejor variante cuántica. Este resultado es coherente con la hipótesis H1 y con la observación de \citet{kaplan2016diff} de que la ganancia relevante del criptoanálisis diferencial cuántico procede de la reducción de datos en el modelo Q2.
+\end{enumerate}
+
+Quedan pendientes para la Entrega 3 la implementación del ataque clásico y del circuito en Qiskit, el recuento de puertas \(g_S\), \(g_{=}\), \(g_{+}\) y \(g_{\ge}\), la medida de la probabilidad efectiva del diferencial y de la distribución de puntuaciones incorrectas, y el análisis cuantitativo del modelo Q2.

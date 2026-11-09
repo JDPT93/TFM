@@ -1,19 +1,121 @@
-\chapter{Modelo del problema y requisitos}
+\chapter{Contexto y estado de la cuestión}
+\label{chap:requisitos}
 
-Este capítulo concreta el escenario que debe satisfacer una implementación y explicita las hipótesis cuyo valor afecta a la comparación. El análisis del TFE no debe asumir que el comportamiento de un cifrador concreto queda validado mientras no se identifiquen el algoritmo, las rondas, la diferencia y los parámetros usados por el código.
+Este capítulo fija la instancia criptográfica sobre la que se trabaja, el modelo de adversario y de acceso a los datos, y los requisitos que debe cumplir la solución. Todas las magnitudes numéricas se derivan de la DDT de la S-caja y pueden comprobarse a mano.
 
-\section{Modelo de ataque}
+\section{Instancia criptográfica}
+\label{sec:instancia}
 
-Sea \(\mathcal{K}\) el conjunto de candidatos de subclave de la última ronda, con \(|\mathcal{K}|=2^b\), y sea \(\mathcal{D}=\{(P_i,P'_i,C_i,C'_i)\}_{i=1}^{N}\) el conjunto de pares relacionados por una diferencia de entrada preestablecida. Para cada \(k\in\mathcal{K}\), se invierte parcialmente la última ronda y se evalúa si el par resultante satisface una condición diferencial. Se define el indicador \(f_i(k)\) y la puntuación \(A(k)\) conforme a la Ecuación~\ref{eq:score}.
+La instancia elegida debe permitir comprobar los cálculos del ataque de forma independiente y, a la vez, definir con precisión qué fragmentos de subclave se intentan recuperar. En las subsecciones siguientes se especifican el cifrador, la característica diferencial y el filtro aplicado.
 
-La hipótesis de trabajo es que la clave correcta produce una puntuación elevada respecto de candidatos incorrectos. Esta hipótesis no basta para garantizar recuperación: la probabilidad de éxito depende de la distribución de puntuaciones, la diferencia entre las medias, la variabilidad estadística, el tamaño \(N\) y la presencia de candidatos con puntuaciones empatadas. Estos valores deben medirse o derivarse para la instancia seleccionada.
+\subsection{Cifrador}
+
+Se utiliza la SPN de \citet{heys2002}. El bloque es de \(n=16\) bits y se divide en cuatro fragmentos de 4 bits. Cada una de las cuatro rondas aplica: la adición XOR de una subclave de 16 bits; cuatro copias de la S-caja \(S\) de la Tabla~\ref{tab:sbox}; y, salvo en la última ronda, la permutación de bits que lleva el bit \(i\) del fragmento \(j\) al bit \(j\) del fragmento \(i\). Tras la cuarta ronda se añade una quinta subclave, \(K_5\). Con subclaves independientes, la clave total es de 80 bits.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{c|cccccccccccccccc}
+\hline\hline
+\(x\) & 0 & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & A & B & C & D & E & F \\
+\(S(x)\) & E & 4 & D & 1 & 2 & F & B & 8 & 3 & A & 6 & C & 5 & 9 & 0 & 7 \\
+\hline
+\end{tabular}
+\caption[S-caja del cifrador de Heys]{S-caja de 4 bits del cifrador, en notación hexadecimal. Fuente: \cite{heys2002}.}
+\label{tab:sbox}
+\end{table}
+
+La elección de esta instancia responde a tres criterios. Es un cifrador publicado y ampliamente utilizado como referencia didáctica, lo que facilita la verificación independiente. Su tamaño permite calcular de forma exacta la DDT y las probabilidades del ataque. Y el número de bits de subclave atacados, \(b=8\), coincide con el rango en el que la constante de Dürr--Høyer resulta determinante (Sección~\ref{sec:resultados-prelim}).
+
+\subsection{Característica diferencial}
+
+Se emplea la característica de tres rondas de \citet{heys2002}, con diferencia de entrada \(\Delta P=\texttt{0B00}\). La Tabla~\ref{tab:caracteristica} muestra su propagación. Las cuatro S-cajas activas tienen las transiciones \(\texttt{B}\to\texttt{2}\), \(\texttt{4}\to\texttt{6}\), \(\texttt{2}\to\texttt{5}\) y \(\texttt{2}\to\texttt{5}\), con entradas de la DDT iguales a 8, 6, 6 y 6, respectivamente.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{c c c c c}
+\hline\hline
+Ronda & \(\Delta U_r\) (entrada S-cajas) & S-cajas activas & \(\Delta V_r\) (salida) & Probabilidad \\
+\hline
+1 & \texttt{0B00} & \(S_{12}\): B\(\to\)2 & \texttt{0200} & \(8/16\) \\
+2 & \texttt{0040} & \(S_{23}\): 4\(\to\)6 & \texttt{0060} & \(6/16\) \\
+3 & \texttt{0220} & \(S_{32}, S_{33}\): 2\(\to\)5 & \texttt{0550} & \((6/16)^2\) \\
+4 & \texttt{0606} & \(S_{42}, S_{44}\) & --- & --- \\
+\hline
+\end{tabular}
+\caption[Característica diferencial de tres rondas]{Propagación de la característica diferencial. \(S_{rj}\) denota la S-caja \(j\) de la ronda \(r\). Fuente: elaboración propia a partir de \cite{heys2002}.}
+\label{tab:caracteristica}
+\end{table}
+
+La probabilidad de la característica es
+\begin{equation}
+ p=\frac{8}{16}\cdot\frac{6}{16}\cdot\left(\frac{6}{16}\right)^2=\frac{27}{1024}\approx 0{,}0264\approx 2^{-5{,}25},
+ \label{eq:p}
+\end{equation}
+de modo que, en promedio, uno de cada \(1/p\approx 38\) pares es correcto. La probabilidad del diferencial \(\texttt{0B00}\to\texttt{0606}\) es mayor o igual que \(p\), porque otras características pueden contribuir; la evaluación experimental medirá su valor efectivo.
+
+\subsection{Subclave objetivo y filtro}
+
+La diferencia \(\Delta U_4=\texttt{0606}\) activa las S-cajas 2 y 4 de la última ronda. El ataque recupera los 8 bits de \(K_5\) que se suman a sus salidas, de modo que \(b=8\) y hay \(2^8=256\) candidatos. Para un par correcto, las S-cajas 1 y 3 de la última ronda son inactivas, y como la adición de \(K_5\) no altera las diferencias, los fragmentos 1 y 3 de \(\Delta C\) deben ser nulos. Además, los fragmentos 2 y 4 de \(\Delta C\) deben ser salidas posibles de la S-caja para la entrada \(\texttt{6}\). La fila 6 de la DDT tiene entradas no nulas exactamente en las salidas \(\{\texttt{3},\texttt{5},\texttt{C},\texttt{D},\texttt{E},\texttt{F}\}\), con valores \(4,4,2,2,2,2\).
+
+\section{Modelo de adversario y de acceso a los datos}
+\label{sec:modelo}
+
+El modelo principal del Trabajo es el \textbf{modelo Q1}: el adversario obtiene \(N\) pares de textos claros elegidos y sus cifrados mediante consultas clásicas, y dispone de un ordenador cuántico ideal, sin ruido, para procesarlos. Se elige Q1 porque es el escenario realista para un adversario que no controla la implementación del cifrador y porque, en él, la única fase del ataque diferencial que admite aceleración cuántica es el procesamiento de los pares y la búsqueda de la subclave.
+
+Dentro de Q1, los pares que superan el filtro se \textbf{cablean en el oráculo} como constantes clásicas: cada bit del texto cifrado determina si se aplica o no una puerta \(X\) sobre el registro de candidatos. Este modelo no requiere QRAM, por lo que su coste es directamente contabilizable en puertas, a cambio de que cada llamada al oráculo recorra secuencialmente todos los pares. El modelo con QRAM y conteo cuántico, que corresponde al planteamiento de \citet{zhou2019}, y el modelo Q2 de \citet{kaplan2016diff} se analizan como alternativas en el Capítulo~\ref{chap:solucion}, sin implementarlos.
 
 \section{Requisitos funcionales}
 
-La solución debe: (a) enumerar o representar candidatos de subclave; (b) calcular la condición de filtrado para cada par; (c) acumular una puntuación entera; (d) comparar puntuaciones y mantener el candidato mejor puntuado; y (e) permitir una evaluación reversible si se usa como oráculo cuántico. La reversibilidad exige conservar información auxiliar o descomputarla al terminar; no se puede borrar el registro de puntuación sin explicar el procedimiento de limpieza.
+La Tabla~\ref{tab:rf} enumera los requisitos funcionales de la solución.
 
-\section{Supuestos y límites}
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{p{0.07\textwidth} p{0.83\textwidth}}
+\hline\hline
+Id. & Requisito \\
+\hline
+RF1 & Implementar el cifrador de cuatro rondas y generar \(N\) pares con diferencia \(\Delta P=\texttt{0B00}\) bajo una clave aleatoria conocida. \\
+RF2 & Aplicar el filtro de textos cifrados de la Sección~\ref{sec:instancia} y conservar únicamente los \(N'\) pares que lo superan. \\
+RF3 & Calcular de forma clásica \(A(k)\) para los 256 candidatos mediante contadores y devolver la ordenación de candidatos. \\
+RF4 & Codificar los candidatos en un registro de \(b=8\) qubits y preparar la superposición uniforme. \\
+RF5 & Calcular de forma reversible, para cada par filtrado, el indicador \(f_i(k)\) mediante el descifrado parcial de las S-cajas 2 y 4. \\
+RF6 & Acumular los indicadores en un contador reversible de \(m=\lceil\log_2(N'+1)\rceil\) qubits. \\
+RF7 & Comparar el contador con un umbral, marcar en fase los candidatos que lo superan y descomputar contador, indicadores y registros de trabajo. \\
+RF8 & Ejecutar la búsqueda de máximo (Dürr--Høyer) o la búsqueda con umbral (Grover con número de soluciones desconocido) y verificar el candidato obtenido frente a la clave conocida. \\
+\hline
+\end{tabular}
+\caption[Requisitos funcionales]{Requisitos funcionales de la solución. Fuente: elaboración propia.}
+\label{tab:rf}
+\end{table}
 
-Se supone inicialmente que los \(N\) pares ya están disponibles. El análisis cuántico debe especificar si están codificados en memoria clásica consultable coherentemente o cargados en un oráculo ideal, pues esos modelos tienen costes distintos. También se debe aclarar si el adversario puede efectuar consultas cuánticas al cifrador. La mera ejecución de un algoritmo de búsqueda cuántica no concede automáticamente ese acceso.
+\section{Requisitos no funcionales}
 
-El alcance se limita a la subclave parcial objetivo y a una versión reducida o instanciación reproducible. No se extrapolará el resultado a la seguridad completa de AES, Camellia, Twofish ni de otro cifrador sin analizar parámetros, rondas y modelo de ataque específicos.
+Además de producir una clave candidata, la implementación debe poder reproducirse, verificarse y evaluarse con recursos acotados. Estos requisitos condicionan el diseño experimental.
+
+\begin{itemize}
+ \item \textbf{RNF1. Reproducibilidad.} Todos los experimentos deben poder repetirse a partir de la versión del código, los parámetros y las semillas registrados.
+ \item \textbf{RNF2. Verificabilidad.} El oráculo cuántico debe comprobarse frente a la implementación clásica para todos los candidatos en instancias pequeñas, comparando las puntuaciones exactas.
+ \item \textbf{RNF3. Simulabilidad.} La versión simulada del circuito no debe superar los 30 qubits, para poder simularla de forma exacta con vector de estado.
+ \item \textbf{RNF4. Contabilidad de recursos.} El circuito debe permitir extraer el número de qubits, de puertas de Toffoli y CNOT y la profundidad.
+\end{itemize}
+
+\section{Supuestos e hipótesis}
+
+El análisis teórico depende de los siguientes supuestos sobre el comportamiento del cifrador y el modelo de computación. Se contrastarán en la medida que permita la instancia reducida.
+
+\begin{itemize}
+ \item \textbf{S1.} Las subclaves son independientes y el cifrador se comporta como un cifrador de Markov, de modo que la probabilidad de la característica es el producto de la Ecuación~\ref{eq:p} \citep{lai1991}.
+ \item \textbf{S2.} Hipótesis de aleatorización de la clave incorrecta: para un candidato erróneo, la diferencia obtenida tras el descifrado parcial se distribuye uniformemente.
+ \item \textbf{S3.} El ordenador cuántico es ideal: no se consideran ruido, corrección de errores ni restricciones de conectividad.
+\end{itemize}
+
+A partir de la revisión del Capítulo~\ref{chap:contexto}, el Trabajo formula la siguiente hipótesis, que la evaluación experimental deberá contrastar:
+
+\begin{quote}
+\textbf{H1.} En el modelo Q1 con datos cableados, el coste total del ataque está dominado por la obtención y el filtrado clásico de los \(N\) pares, tanto en la versión clásica como en la cuántica. La búsqueda cuántica de máximo no reduce el coste total para la instancia estudiada, y la ventaja en número de consultas de Dürr--Høyer frente a la evaluación de todos los candidatos solo aparece para \(b\ge 9\).
+\end{quote}
+
+\section{Límites}
+
+El Trabajo recupera únicamente los 8 bits de \(K_5\) asociados a la característica elegida; la recuperación del resto de la clave queda fuera de su alcance. No se estudian cifradores reales, aunque las expresiones de coste se formulan en función de parámetros genéricos. La ejecución en hardware cuántico real y la estimación de recursos físicos tras la corrección de errores quedan fuera del alcance.
