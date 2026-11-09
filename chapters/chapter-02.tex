@@ -1,3 +1,21 @@
-\chapter{Motivación del tema}
+\chapter{Contexto y antecedentes}
 
-En este Capítulo vamos a describir cuál es nuestra motivación para haber elegido el tema que vamos a tratar.
+Este capítulo presenta las nociones necesarias para situar el problema y distingue el ataque diferencial clásico de su adaptación cuántica. La distinción es esencial porque una reducción del número de consultas no elimina el coste de obtener los datos ni el de evaluar la función usada para puntuar cada candidato.
+
+\section{Criptoanálisis diferencial}
+
+El criptoanálisis diferencial analiza la relación entre diferencias de entradas y diferencias de salidas de un cifrador. Para diferencias XOR se escriben \(\Delta P=P\oplus P'\) y \(\Delta C=C\oplus C'\). En un cifrador por rondas, una característica diferencial describe una secuencia de diferencias intermedias y su probabilidad bajo las subclaves. Si una diferencia de salida aparece con probabilidad apreciablemente mayor que la esperada bajo una clave incorrecta, un conjunto de pares puede aportar evidencia estadística a favor de ciertos candidatos de subclave \citep{biham1991}.
+
+En un ataque de recuperación de clave sobre una ronda final, se aplica el inverso parcial de la última ronda para cada candidato. El filtro resultante aporta un voto al candidato cuando el par satisface la condición prevista. La acumulación de votos define una función de puntuación como la de la Ecuación~\ref{eq:score}. La eficacia depende de que exista una diferencia estadística entre la puntuación del candidato correcto y la de los incorrectos, además de que se disponga de suficientes pares.
+
+\section{Búsqueda cuántica y modelos de acceso}
+
+El algoritmo de Dürr--Høyer busca el índice de un mínimo de una tabla no ordenada con un número esperado de consultas del orden de la raíz cuadrada del tamaño de la tabla, bajo el modelo de acceso que permite comparar los valores mediante consultas cuánticas \citep{durr1999}. Para maximizar una puntuación puede minimizarse su opuesto, o bien adaptarse la comparación. Si la tabla contiene \(2^b\) puntuaciones, el número de consultas a la rutina de evaluación puede escalar como \(O(2^{b/2})\), sujeto a los supuestos del algoritmo y a la probabilidad de éxito elegida.
+
+Kaplan et al. distinguen ataques que usan datos clásicos con procesamiento cuántico de ataques que también consultan el cifrador en superposición; la diferencia modifica qué datos puede asumir el adversario y, por tanto, la interpretación de la complejidad \citep{kaplan2017}. En este Trabajo el modelo y la disponibilidad de los pares deben quedar fijados explícitamente antes de comparar costes.
+
+\section{Estado actual de la investigación}
+
+Kaplan et al. analizan versiones cuánticas de criptoanálisis diferencial y lineal y muestran que no todas las variantes reciben la misma aceleración; también discuten que el mejor ataque clásico no necesariamente se transforma en el mejor ataque cuántico \citep{kaplan2017}. Zhou et al. describen un ataque diferencial cuántico que combina búsqueda de mínimo o máximo con conteo cuántico para obtener las puntuaciones y presentan una propuesta de circuito \citep{zhou2019}. Estas contribuciones proporcionan el marco inmediato de este estudio.
+
+La cuestión pendiente para la memoria es traducir dicho esquema al modelo de coste que realmente representa el código del proyecto. En particular, hay que establecer si la evaluación de \(A(k)\) recorre los \(N\) pares de forma secuencial, si existe reutilización de resultados y qué registros reversibles requiere. Sin esa especificación, \(O(2^{b/2})\) describe las llamadas a una función de puntuación, pero no el coste temporal total del ataque.

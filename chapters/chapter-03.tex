@@ -1,5 +1,23 @@
-\chapter{Estructura del Trabajo}
+\chapter{Objetivos y metodología}
 
-Describiremos toda la estructura del Trabajo, capítulo a capítulo, a poder ser de forma itemizada o en un párrafo cada descripción de cada capítulo. Atención a la mayúscula de ``Trabajo" cuando nos referimos a nuestro documento.
+El TFE analiza la recuperación de una subclave parcial mediante un ataque diferencial y compara la búsqueda clásica de candidatos con una búsqueda cuántica de máximo. La metodología combina la formalización del algoritmo, el análisis de costes bajo un modelo de acceso explícito y la evaluación computacional de una instancia reducida y reproducible. El estudio se limita al nivel algorítmico y no incluye la ejecución en hardware cuántico ni el análisis de ruido, corrección de errores o recursos físicos.
 
-En muchos casos estos tres capítulos anteriores pueden ir todos en una introducción, dependiendo del tipo de memoria y extensión de la que se trate. Por ejemplo, en las actividades para la solución de un problema, estos pueden ser apartados de la Introducción; pero en una revisión bibliográfica más larga o en un TFM, es mejor que sean capítulos.
+\section{Objetivo general}
+
+Analizar la aplicación de una búsqueda cuántica de máximo a la recuperación de subclaves mediante criptoanálisis diferencial, separando la complejidad de consultas a la función de puntuación del coste de calcularla y de los recursos necesarios para acceder a los datos.
+
+\section{Objetivos específicos}
+
+\begin{enumerate}
+ \item Formalizar la condición diferencial y la función de puntuación para cada candidato de subclave.
+ \item Identificar el modelo de acceso a los textos y al cifrador que asume el ataque.
+ \item Describir los requisitos de reversibilidad para calcular, comparar y deshacer la puntuación dentro de una búsqueda cuántica.
+ \item Estimar datos, consultas, operaciones y memoria en los modelos clásico y cuántico, indicando los parámetros de los que depende cada cota.
+ \item Contrastar las expresiones analíticas con el código disponible y documentar qué resultados pueden reproducirse y cuáles son solo estimaciones teóricas.
+\end{enumerate}
+
+\section{Metodología}
+
+La metodología comprende cuatro etapas. Primero, se revisan los trabajos originales sobre criptoanálisis diferencial y búsqueda cuántica de extremos. Segundo, se fija el escenario criptográfico, incluidos el cifrador, las rondas atacadas, la diferencia elegida, el tamaño de subclave \(b\) y los datos \(N\). Tercero, se traduce la función de puntuación a operaciones elementales y se inspecciona el código del repositorio para comprobar qué partes implementa. Por último, se comparan las complejidades bajo supuestos homogéneos y se registran las limitaciones.
+
+Para la evaluación computacional se deberán informar la versión del código, el entorno de ejecución, los parámetros, las semillas aleatorias cuando proceda y las métricas observadas. Las tablas de resultados experimentales se completarán de forma incremental con ejecuciones verificables; no se inferirán mediciones a partir de la descripción teórica de los artículos.

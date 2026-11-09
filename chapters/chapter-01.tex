@@ -1,44 +1,26 @@
 \chapter{Introducción}
 
-En la Introducción se debe resumir de forma esquemática pero suficientemente clara lo esencial de cada una de las partes del trabajo y, sobre todo, aprovechar para explicar conceptos que puedan ser de utilidad después.
+La criptografía simétrica protege información mediante algoritmos que comparten una clave secreta. Su seguridad práctica depende, entre otros factores, de que un adversario no pueda recuperar la clave ni distinguir el comportamiento del cifrador con recursos razonables. El criptoanálisis diferencial estudia cómo ciertas diferencias entre entradas se propagan hasta las salidas y permite construir ataques estadísticos contra versiones reducidas o configuraciones vulnerables de algunos cifradores. La disponibilidad de algoritmos cuánticos obliga a revisar el coste de estos ataques bajo modelos de acceso distintos a los clásicos \citep{biham1991,kaplan2017,zhou2019}.
 
-\vspace{\baselineskip}
+Este Trabajo estudia una aplicación cuántica del análisis diferencial basada en la búsqueda de candidatos de subclave que maximizan una puntuación de conteo. El problema se formula a partir de pares de textos cifrados con diferencias relacionadas; para cada candidato se cuenta cuántos pares satisfacen una condición de filtrado derivada de la estructura del cifrador. Una búsqueda de mínimo o máximo puede reducir el número de consultas al conjunto de candidatos, aunque el coste de calcular cada puntuación y de implementar su oráculo reversible debe contabilizarse por separado \citep{durr1999,zhou2019}.
 
-La lectura de esta parte debe contextualizar perfectamente todo el Trabajo y debe estar PLAGADA DE REFERENCIAS (más adelante se describe cómo hacerlo).
+\section{Motivación y justificación}
 
-\vspace{\baselineskip}
+La relevancia del problema reside en comprender qué parte de un ataque diferencial puede acelerarse mediante computación cuántica y bajo qué supuestos. Una cota de consultas cuadrática no implica por sí sola una reducción equivalente del tiempo total: el algoritmo debe acceder a los datos de forma coherente, evaluar reversiblemente la condición de filtrado y deshacer los cálculos auxiliares. La literatura diferencia, además, entre adversarios que ejecutan cómputo cuántico sobre datos clásicos y adversarios capaces de realizar consultas cuánticas al cifrador; ambos modelos no son intercambiables \citep{kaplan2017}.
 
-Es una parte muy importante de la memoria. Las ideas principales a transmitir son la identificación del problema a tratar, la justificación de su importancia, esbozo de los objetivos generales a grandes rasgos y un adelanto de la contribución que esperas hacer.
+\section{Planteamiento del problema}
 
-\vspace{1cm}
+Se considera un ataque de última ronda en el que se recuperan \(b\) bits de subclave mediante una colección de \(N\) pares de textos. Para cada candidato \(k\in\{0,1\}^{b}\), sea \(f_i(k)\in\{0,1\}\) el indicador de que el par \(i\), tras el descifrado parcial correspondiente, satisface el filtro diferencial. La puntuación es
+\begin{equation}
+ A(k)=\sum_{i=1}^{N} f_i(k), \qquad k\in\{0,1\}^{b}.
+ \label{eq:score}
+\end{equation}
+El objetivo es identificar un candidato con puntuación máxima o suficientemente alta. La pregunta de investigación es: ¿bajo qué supuestos puede una búsqueda cuántica de máximo reducir el coste de explorar los \(2^b\) candidatos, y qué coste total resulta al incluir la evaluación de \(A(k)\), los datos y los requisitos de acceso coherente?
 
-{\bf{ATENCIÓN, CÓMO REFERENCIAR.}}
+\section{Alcance y estructura del Trabajo}
 
-A continuación vamos a ver qué son, qué no son y para qué  sirven las referencias bibliográficas:
+El TFE estudia la recuperación de una subclave parcial de última ronda mediante criptoanálisis diferencial y la aplicación de una búsqueda cuántica de máximo a la función de puntuación de los candidatos. El estudio comprende la formulación del ataque, la definición del modelo de acceso a los datos y al cifrador, el análisis de los requisitos de un oráculo reversible y la comparación de los costes clásico y cuántico en términos de datos, consultas, operaciones y memoria. La evaluación computacional se circunscribe a una instancia reducida y reproducible, con parámetros explícitos, para contrastar la función de puntuación y las estimaciones de coste.
 
-\begin{itemize}
-	\item las referencias NO están para rellenar
-	\item las referencias SÍ son un TRIBUTO a las personas que hicieron en primer lugar una investigación o aportaron una idea
-	\item la referencias citan trabajo que acompaña una idea o un concepto, NO se usa UNA referencia para todo un párrafo que aglutina diferentes conceptos
-	\item deben citarse LOS TRABAJOS ORIGINALES DE LOS AUTORES, y no un libro de texto donde he visto que hablan de algo
-	\item os libros de texto se pueden referencial excepcionalmente, porque el libro es sobresaliente y conocido en el campo y/o porque quiero apoyarme en una explicación conocida para un determinado concepto o cuestión, pero no como origen del concepto del que se habla
-\end{itemize}
+Quedan fuera del alcance la recuperación de la clave completa, la evaluación exhaustiva de la seguridad de cifradores comerciales y la generalización de los resultados a configuraciones no estudiadas. Tampoco se abordan la ejecución en hardware cuántico, el ruido, la corrección de errores ni una estimación de recursos físicos. Las conclusiones sobre una posible ventaja cuántica se limitan al modelo de acceso y a los costes analizados; una reducción de consultas no se interpreta por sí sola como una ventaja práctica de tiempo de ejecución.
 
-\vspace{1cm}
-
-{\bf{VEAMOS EJEMPLOS DE CITAS.}}
-
-Vamos a ver los dos tipos de citas que vamos a utilizar normalmente en los trabajos y actividades:
-
-\begin{itemize}
-	\item CITA INDIRECTA: estamos hablando de algo e introcimos la referencia sobre la que apoyamos esa idea. Por ejemplo, hablado de los procesadores de texto, LATEX  \citep{lamport1994} es tipo de editor con el que se consiguen resultados de gran calidad
-	\item CITA DIRECTA: nos referimos directamente a un trabajo y lo citamos. Por ejemplo, según \cite{ackerman2017}, la liga de fútbol inglesa debe tener torneos de desempate
-\end{itemize}
-
-\vspace{\baselineskip}
-
-Según el párrafo anterior con la cita indirecta aparecerá entre paréntesis el apellido y el año, separados por una coma; en el caso de varios autores, podrán aparecer hasta tres apellidos y, cuando son más, aparecerá el primero seguido de "et al." (y después el año separado con una coma). Con la cita directa solo va entre paréntesis el año, pero no los autores. Podéis mirar el apartado de Bibliografía para ver cómo han quedado estas citas.
-
-\vspace{\baselineskip}
-
-Para consultar detenidamente la formas de referenciar, debéis seguir el formato APA del siguiente documento: \url{https://bibliografiaycitas.unir.net/documentos/APA_7ed_UNIR.pdf}
+El Capítulo 2 revisa el contexto y los antecedentes; el Capítulo 3 fija los objetivos y la metodología; el Capítulo 4 define el modelo del problema, los requisitos y los supuestos; el Capítulo 5 presenta el diseño de la solución y el análisis de costes; el Capítulo 6 aborda la evaluación computacional; y el Capítulo 7 expone las conclusiones, las limitaciones y el trabajo futuro.

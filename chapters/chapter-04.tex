@@ -1,7 +1,19 @@
-\chapter{Contexto y estado de la cuestión}
+\chapter{Modelo del problema y requisitos}
 
-En esta Sección debemos demostrar que conocemos lo que se ha hecho en el ámbito que estamos desarrollando el trabajo. En nuestro caso, que se ha buscado la bibliografía y referencias suficientes y que esas ideas se han volcado en el trabajo en la línea de los objetivos que perseguimos o que queremos transmitir.
+Este capítulo concreta el escenario que debe satisfacer una implementación y explicita las hipótesis cuyo valor afecta a la comparación. El análisis del TFE no debe asumir que el comportamiento de un cifrador concreto queda validado mientras no se identifiquen el algoritmo, las rondas, la diferencia y los parámetros usados por el código.
 
-\vspace{\baselineskip}
+\section{Modelo de ataque}
 
-Por favor, NUNCA escribáis ``estado del arte". Esto no existe en castellano (si dudáis, mirad la Real Academia de la Lengua Española). Puede ser ``estado actual", ``últimos avances" o expresiones similares.
+Sea \(\mathcal{K}\) el conjunto de candidatos de subclave de la última ronda, con \(|\mathcal{K}|=2^b\), y sea \(\mathcal{D}=\{(P_i,P'_i,C_i,C'_i)\}_{i=1}^{N}\) el conjunto de pares relacionados por una diferencia de entrada preestablecida. Para cada \(k\in\mathcal{K}\), se invierte parcialmente la última ronda y se evalúa si el par resultante satisface una condición diferencial. Se define el indicador \(f_i(k)\) y la puntuación \(A(k)\) conforme a la Ecuación~\ref{eq:score}.
+
+La hipótesis de trabajo es que la clave correcta produce una puntuación elevada respecto de candidatos incorrectos. Esta hipótesis no basta para garantizar recuperación: la probabilidad de éxito depende de la distribución de puntuaciones, la diferencia entre las medias, la variabilidad estadística, el tamaño \(N\) y la presencia de candidatos con puntuaciones empatadas. Estos valores deben medirse o derivarse para la instancia seleccionada.
+
+\section{Requisitos funcionales}
+
+La solución debe: (a) enumerar o representar candidatos de subclave; (b) calcular la condición de filtrado para cada par; (c) acumular una puntuación entera; (d) comparar puntuaciones y mantener el candidato mejor puntuado; y (e) permitir una evaluación reversible si se usa como oráculo cuántico. La reversibilidad exige conservar información auxiliar o descomputarla al terminar; no se puede borrar el registro de puntuación sin explicar el procedimiento de limpieza.
+
+\section{Supuestos y límites}
+
+Se supone inicialmente que los \(N\) pares ya están disponibles. El análisis cuántico debe especificar si están codificados en memoria clásica consultable coherentemente o cargados en un oráculo ideal, pues esos modelos tienen costes distintos. También se debe aclarar si el adversario puede efectuar consultas cuánticas al cifrador. La mera ejecución de un algoritmo de búsqueda cuántica no concede automáticamente ese acceso.
+
+El alcance se limita a la subclave parcial objetivo y a una versión reducida o instanciación reproducible. No se extrapolará el resultado a la seguridad completa de AES, Camellia, Twofish ni de otro cifrador sin analizar parámetros, rondas y modelo de ataque específicos.

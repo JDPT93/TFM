@@ -1,11 +1,41 @@
-\chapter{Objetivos}
+\chapter{Diseño de la solución y análisis preliminar}
 
-Esquematizar claramente los objetivos del trabajo, las ideas que queremos demostrar. Podemos tener varios tipos de objetivos. Por ejemplo, podemos tener un número de objetivos generales y otro de objetivos específicos. Deben ordenarse claramente.
+La solución compara la búsqueda exhaustiva clásica de la mejor subclave con una búsqueda cuántica de máximo sobre la misma función de puntuación. La comparación se expresa primero en consultas al oráculo y luego en coste total, de modo que quede visible el peso de evaluar la puntuación.
 
-\section{Objetivos generales}
+\section{Evaluación de la puntuación}
 
-Aquí vamos a exponer los objetivos generales. Es una forma de dar perspectiva al Trabajo. Debemos ser ambiciosos en esta exposición
+Para un candidato \(k\), el cálculo directo de \(A(k)\) evalúa el filtro sobre los \(N\) pares. Si una evaluación del filtro cuesta \(c\) operaciones clásicas, el trabajo directo es del orden de \(cN\). En una realización cuántica se requiere una unidad reversible \(U_A\) que calcule la puntuación en un registro auxiliar, permita comparar con un umbral y restaure los registros de trabajo. Denotamos por \(C_A(N,b)\) el coste total de esta evaluación reversible, incluyendo preparación y descomputación.
 
-\section{Objetivos específicos}
+La búsqueda de Dürr--Høyer aplica repetidamente una búsqueda cuántica condicionada por el valor de referencia para encontrar un candidato mejor. Adaptada a una tabla de \(2^b\) valores, usa del orden de \(2^{b/2}\) evaluaciones de la función de puntuación para una probabilidad de éxito constante; el factor de amplificación de probabilidad y las comparaciones deben informarse al fijar una probabilidad mayor \citep{durr1999}. Zhou et al. describen una construcción de criptoanálisis diferencial que combina la búsqueda de extremos con conteo cuántico, por lo que la función realmente evaluada debe seguirse en el circuito y no resumirse como una consulta gratuita \citep{zhou2019}.
 
-En esta Sección vamos a dar detalles concretos de lo que queremos conseguir. Por tanto, estos objetivos van al detalle.
+\section{Costes de referencia}
+
+En la búsqueda exhaustiva clásica, evaluar todos los candidatos requiere \(2^b\) puntuaciones. Con coste \(cN\) por puntuación, el orden de trabajo es \(O(cN2^b)\), además del almacenamiento de contadores si se materializan. Para la búsqueda cuántica, la expresión de consultas es \(O(2^{b/2})\), pero al multiplicarla por el coste de la evaluación reversible se obtiene el orden de referencia
+\begin{equation}
+ T_{Q}=O\!\left(C_A(N,b)\,2^{b/2}\right).
+ \label{eq:quantum-cost}
+\end{equation}
+Si una evaluación reversible recorre los \(N\) pares sin estructura adicional y cuesta \(O(c_QN)\), entonces la estimación resultante es \(O(c_QN2^{b/2})\). Esta expresión es condicional: no incluye automáticamente carga de datos, construcción del oráculo, latencia, profundidad, corrección de errores ni coste de ejecutar el circuito en hardware.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{p{0.22\textwidth} p{0.34\textwidth} p{0.34\textwidth}}
+\hline\hline
+Recurso & Búsqueda exhaustiva clásica & Búsqueda cuántica de máximo \\
+\hline
+Candidatos explorados & \(2^b\) puntuaciones & \(O(2^{b/2})\) consultas a la puntuación \\
+Coste de puntuar & \(O(cN)\) por candidato & \(C_A(N,b)\) reversible por consulta \\
+Trabajo de referencia & \(O(cN2^b)\) & \(O(C_A(N,b)2^{b/2})\) \\
+Datos & \(N\) pares disponibles & \(N\) pares y acceso coherente especificado \\
+Memoria & Depende de la tabla de conteo & Registros de candidatos, datos y auxiliares \\
+\hline
+\end{tabular}
+\caption[Comparación preliminar de costes]{Comparación asintótica preliminar bajo el supuesto de que ambos métodos evalúan la misma función de puntuación. Las expresiones cuánticas no incluyen la carga de datos ni los costes físicos del circuito. Fuente: elaboración propia a partir de \cite{durr1999,zhou2019}.}
+\label{tab:costes}
+\end{table}
+
+\section{Resultados preliminares y cuestiones pendientes}
+
+El análisis confirma una reducción cuadrática en el número de candidatos consultados, de \(2^b\) a un orden \(2^{b/2}\), si se cumplen las hipótesis del algoritmo de búsqueda y la evaluación reversible está disponible. El factor \(N\) permanece en el coste de una puntuación directa sobre todos los pares. Por tanto, la ventaja en consultas no equivale a una reducción cuadrática de todos los recursos ni de la duración real.
+
+Para cerrar esta comparación se debe inspeccionar y ejecutar el repositorio proporcionado, identificar el cifrador y los parámetros concretos y medir el coste de conteo para distintos tamaños de \(N\) y \(b\). También deben registrarse la precisión o éxito de recuperación, los empates y el número de repeticiones. Esos datos se incorporarán progresivamente al TFE a medida que se completen las ejecuciones verificables. Por el momento, esta sección presenta una deducción analítica, no resultados experimentales.
