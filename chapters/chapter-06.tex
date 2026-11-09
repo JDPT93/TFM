@@ -1,0 +1,51 @@
+\chapter{Desarrollo del Trabajo}
+
+Aquí desarrollaremos nuestro trabajo. Contrastaremos la ideas entre varios autores y, si es posible, con las nuestras. Podemos incluir las secciones y subsecciones que necesitemos.
+
+\vspace{\baselineskip}
+
+Tanto en esta Sección, como en el resto del Trabajo, se debe cuidar la redacción, el uso de las comas, puntos, puntos y coma, puntos y aparte y demás recursos. Fijaos en esta plantilla como estan escritas ciertas palabras que usamos mucho: \emph{Sección xx}, pero \emph{secciones}; \emph{Figura xx}, pero \emph{figures}; \emph{Ecuación xx}, pero \emph{ecuaciones}; etc... Podéis echar un vistazo a trabajos de fin de estudios para comprobar la organización, ortografía y redacción de un trabajo a este nivel. En el repositorio de UNIR tenéis la posibilidad de acceder a trabajos presentados como TFMs en esta Titulación que os servirán de modelo: \url{https://reunir.unir.net/handle/123456789/6218}
+
+\vspace{\baselineskip}
+
+Las figures y tablas tienen que tener su numeración y su título. Además, se debe indicar la fuente, si es de elaboración propia o se ha tomado de alguna referencia.
+
+\vspace{\baselineskip}
+
+Por ejemplo:
+
+\begin{figure}[h]
+	\centerline{\includegraphics[scale=0.4]{figures/inversionmedia.png}}
+	\caption[Inversión sobre la media del algoritmo de Grover]{Inversión sobre la media del algoritmo de Grover. El conjunto de ${x_i}$ son las amplitudes de cada estado cuántico. La línea discontinua es la media de las amplitudes. Después de cada inversión, la amplitudes grandes se vuelven más grandes y las pequeñas más pequeñas. Fuente: elaboración propia}
+	\label{fig:inversionmedia}
+\end{figure}
+
+En la Figura~\ref{fig:inversionmedia} vemos que es una figura de elaboración propia, mientras que la Figura~\ref{fig:distprob}, la fuente es un artículo cuya referencia viene indicada y el artículo es incluído en la Bibliografía.
+
+\vspace{\baselineskip}
+
+\begin{figure}[h]
+	\centerline{\includegraphics[scale=0.6]{figures/distribucionprobabilidades.png}}
+	\caption[Distribución de probabilidades]{a) Un ejemplo de distribución de probabilidad sobre 8 símbolos. (b) 100 muestras aleatorias de la distribución de probabilidad.
+		probabilidad. El objetivo de un problema de muestreo es calcular muestras como las secuencias mostradas en (b) cuya complejidad	puede ser diferente a la complejidad de calcular la distribución de probabilidad (a). Fuente: \cite{lund2017}}
+	\label{fig:distprob}
+\end{figure}
+
+Se incluye la Tabla~\ref{tab:balance} a modo de ejemplo. Solo contiene información sobre el balance de dos empresas ficticias. Debe incluirse también una leyenda, debajo de la tabla, junto con la fuente.
+
+\vspace{\baselineskip}
+
+\begin{table}[H]
+\centering % esto centra la tabla
+\begin{tabular}{c c c c} % centra las 4 columnas
+	\hline\hline %incluye líneas horizontales dobles
+	Empresa & Ingresos & Gastos & Otros \\ [0.5ex] 
+	\hline 
+	Tintileo  & 50000 & 83700 & 97000 \\
+	Packandgo & 47000 & 87700 & 23000 \\
+	\hline
+\end{tabular}
+\caption[Balance de empresas]{Dos empresas ficticias con las columnas de ingresos y gastos, para dos años que no se especifican. Fuente: elaboración propia.}
+\label{tab:balance}
+\label{table:nonlin} % is used to refer this table in the text
+\end{table}
